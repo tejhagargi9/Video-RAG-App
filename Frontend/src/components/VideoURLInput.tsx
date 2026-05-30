@@ -3,21 +3,29 @@ import { useState } from "react";
 const YT_PATTERN = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{11}/;
 const IG_PATTERN = /^(https?:\/\/)?(www\.)?instagram\.com\/(reel|reels|p)\/[A-Za-z0-9_-]+/;
 
-export default function VideoURLInput({ onSubmit }) {
+export default function VideoURLInput({ onSubmit, showSecondInput = true }) {
   const [urlA, setUrlA] = useState("");
   const [urlB, setUrlB] = useState("");
 
   const aValid = YT_PATTERN.test(urlA.trim());
   const bValid = IG_PATTERN.test(urlB.trim());
-  const canSubmit = aValid && bValid;
+  
+  // Determine if we can submit based on mode
+  const canSubmit = showSecondInput ? (aValid && bValid) : aValid;
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
       <div className="w-full max-w-xl space-y-3">
 
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">Compare Videos</h1>
-          <p className="text-sm text-zinc-500 mt-1">Paste a YouTube and Instagram Reel URL to begin</p>
+          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+            {showSecondInput ? "Compare Videos" : "Get YouTube Transcript"}
+          </h1>
+          <p className="text-sm text-zinc-500 mt-1">
+            {showSecondInput 
+              ? "Paste a YouTube and Instagram Reel URL to begin" 
+              : "Paste a YouTube URL to get transcript"}
+          </p>
         </div>
 
         {/* YouTube */}
@@ -43,40 +51,55 @@ export default function VideoURLInput({ onSubmit }) {
           </div>
         </div>
 
-        {/* Instagram */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-bold tracking-widest text-rose-400 bg-rose-950 border border-rose-800 px-2 py-0.5 rounded">B</span>
-            <span className="text-xs text-zinc-500">Instagram Reels</span>
-            {urlB && (bValid
-              ? <span className="ml-auto text-xs text-emerald-500">✓ valid</span>
-              : <span className="ml-auto text-xs text-red-400">✗ invalid</span>)}
+        {/* Instagram - only show if showSecondInput is true */}
+        {showSecondInput && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold tracking-widest text-rose-400 bg-rose-950 border border-rose-800 px-2 py-0.5 rounded">B</span>
+              <span className="text-xs text-zinc-500">Instagram Reels</span>
+              {urlB && (bValid
+                ? <span className="ml-auto text-xs text-emerald-500">✓ valid</span>
+                : <span className="ml-auto text-xs text-red-400">✗ invalid</span>)}
+            </div>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-pink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                <circle cx="12" cy="12" r="4"/>
+                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+              </svg>
+              <input
+                type="url"
+                value={urlB}
+                onChange={e => setUrlB(e.target.value)}
+                placeholder="https://instagram.com/reel/..."
+                className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none transition-colors font-mono"
+              />
+            </div>
           </div>
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-pink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-              <circle cx="12" cy="12" r="4"/>
-              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
-            </svg>
-            <input
-              type="url"
-              value={urlB}
-              onChange={e => setUrlB(e.target.value)}
-              placeholder="https://instagram.com/reel/..."
-              className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none transition-colors font-mono"
-            />
-          </div>
-        </div>
+        )}
 
         <button
-          onClick={() => canSubmit && onSubmit?.(urlA.trim(), urlB.trim())}
+          onClick={() => canSubmit && onSubmit?.(
+            urlA.trim(), 
+            showSecondInput ? urlB.trim() : null
+          )}
           disabled={!canSubmit}
           className={`w-full py-3 rounded-xl text-sm font-semibold transition-all mt-2
             ${canSubmit
               ? "bg-zinc-100 text-zinc-900 hover:bg-white cursor-pointer"
               : "bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed"}`}
         >
-          {canSubmit ? "Analyze Both Videos →" : aValid ? "Add Instagram Reel URL" : bValid ? "Add YouTube URL" : "Paste both URLs to continue"}
+          {canSubmit
+            ? showSecondInput
+              ? "Analyze Both Videos →"
+              : "Get Transcript →"
+            : showSecondInput
+              ? aValid
+                ? "Add Instagram Reel URL"
+                : bValid
+                  ? "Add YouTube URL"
+                  : "Paste both URLs to continue"
+              : "Paste YouTube URL to continue"}
         </button>
 
       </div>
