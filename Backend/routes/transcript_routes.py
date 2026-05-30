@@ -1,12 +1,17 @@
 from fastapi import APIRouter, HTTPException
 from youtube_transcript_api import YouTubeTranscriptApi
+from googleapiclient.discovery import build
 import re
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+youtube_service = build("youtube", "v3", developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
 
 def extract_video_id(url: str) -> str:
     """
@@ -36,6 +41,39 @@ def extract_video_id(url: str) -> str:
         
     raise ValueError("Could not extract video ID from URL")
 
+def get_video_metadata(video_id: str) -> dict:
+    """Fetch video metadata using YouTube Data API."""
+    if not youtube_service:
+        logger.warning("YouTube API key not configured, skipping metadata fetch")
+        return None
+    
+    try:
+        request = youtube_service.videos().list(
+            part="snippet,contentDetails,statistics",
+            id=video_id
+        )
+        response = request.execute()
+        
+        if response.get("items"):
+            item = response["items"][0]
+            metadata = {
+                "title": item["snippet"]["title"],
+                "description": item["snippet"]["description"],
+                "channel_title": item["snippet"]["channelTitle"],
+                "published_at": item["snippet"]["publishedAt"],
+                "tags": item["snippet"].get("tags", []),
+                "duration": item["contentDetails"]["duration"],
+                "view_count": int(item["statistics"].get("viewCount", 0)),
+                "like_count": int(item["statistics"].get("likeCount", 0)),
+            }
+            logger.info(f"Video metadata - Title: {metadata['title']}, Channel: {metadata['channel_title']}")
+            logger.info(f"Published: {metadata['published_at']}, Views: {metadata['view_count']}")
+            return metadata
+        return None
+    except Exception as e:
+        logger.error(f"Error fetching video metadata: {str(e)}")
+        return None
+
 @router.get("/transcript/{video_path:path}")
 async def get_transcript(video_path: str):
     logger.info(f"Starting transcript fetch for: {video_path}")
@@ -44,16 +82,20 @@ async def get_transcript(video_path: str):
         logger.info(f"Extracting video ID from path")
         video_id = extract_video_id(video_path)
         logger.info(f"Extracted video ID: {video_id}")
-        
+
+        # Fetch video metadata
+        logger.info(f"Fetching video metadata for video_id: {video_id}")
+        metadata = get_video_metadata(video_id)
+
         # Fetch transcript
         logger.info(f"Starting transcript API fetch for video_id: {video_id}")
         ytt_api = YouTubeTranscriptApi()
         fetched_transcript = ytt_api.fetch(video_id)
         logger.info(f"Transcript fetch complete, got {len(fetched_transcript)} snippets")
-        
+
         # Convert to raw data format as requested
         raw_data = fetched_transcript.to_raw_data()
-        
+
         logger.info(f"Returning transcript with {len(raw_data)} entries")
         # Log transcript snippets to backend console
         if len(raw_data) <= 50:  # Limit logging to avoid excessive output
@@ -64,14 +106,17 @@ async def get_transcript(video_path: str):
             logger.info(f"Transcript too long to display fully ({len(raw_data)} snippets). Showing first 5:")
             for i, snippet in enumerate(raw_data[:5]):
                 logger.info(f"  {i+1}. {snippet.get('text', '')}")
-        
-        return {
+
+        response = {
             "video_id": video_id,
             "transcript": raw_data,
             "language": fetched_transcript.language,
             "language_code": fetched_transcript.language_code,
             "is_generated": fetched_transcript.is_generated
         }
+        if metadata:
+            response["metadata"] = metadata
+        return response
     except ValueError as e:
         logger.error(f"ValueError: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
