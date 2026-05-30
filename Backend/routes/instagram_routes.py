@@ -11,13 +11,25 @@ router = APIRouter()
 # Initialize ApifyClient with token from environment variable
 # For security, we should load the token from environment variables
 # In a real app, you would set APIFY_TOKEN in your .env file
-APIFY_TOKEN = os.getenv("APIFY_TOKEN", "apify_api_gqQ3CHVLZEnakW5ZLXOUsjoxEOGhGv1WSKEN")  # Replace with your token or set env var
+APIFY_TOKEN = os.getenv("APIFY_TOKEN")
+if not APIFY_TOKEN:
+    logger.warning("APIFY_TOKEN environment variable is not set. Instagram transcript functionality will not work.")
+    # Set to a dummy value to prevent client initialization errors, but it will fail at runtime
+    APIFY_TOKEN = "dummy_token_for_initialization_only"
 client = ApifyClient(APIFY_TOKEN)
 
 @router.get("/instagram-transcript/{video_path:path}")
 async def get_instagram_transcript(video_path: str):
     logger.info(f"Starting Instagram transcript fetch for: {video_path}")
     try:
+        # Check if API token is properly configured
+        if APIFY_TOKEN == "dummy_token_for_initialization_only":
+            logger.error("APIFY_TOKEN environment variable is not set. Please set it to use Instagram transcript functionality.")
+            raise HTTPException(
+                status_code=500, 
+                detail="Instagram transcript functionality is not configured. Please set the APIFY_TOKEN environment variable."
+            )
+        
         # Prepare the Actor input
         run_input = { "videoUrl": video_path }
 
@@ -68,4 +80,10 @@ async def get_instagram_transcript(video_path: str):
         }
     except Exception as e:
         logger.error(f"Error fetching Instagram transcript: {str(e)}")
+        # Provide more specific error messages for common issues
+        if "x402 payment header missing" in str(e) or "PAYMENT-SIGNATURE" in str(e) or "Apify token" in str(e):
+            raise HTTPException(
+                status_code=500, 
+                detail="Invalid or missing Apify API token. Please check your APIFY_TOKEN environment variable."
+            )
         raise HTTPException(status_code=500, detail=f"Failed to fetch Instagram transcript: {str(e)}")
