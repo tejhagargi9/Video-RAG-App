@@ -78,7 +78,8 @@ async def ingest_videos(request: IngestRequest):
             "chunks": len(chunks_a),
             "engagement_rate": meta_a.get("engagement_rate"),
             "views": meta_a.get("views"),
-            "likes": meta_a.get("likes")
+            "likes": meta_a.get("likes"),
+            "metadata": meta_a
         }
         logger.info(f"[RAG] Prepared {len(chunks_a)} chunks for YouTube video {video_a_id}")
     except Exception as e:
@@ -150,7 +151,8 @@ async def ingest_videos(request: IngestRequest):
                     "chunks": len(chunks_b),
                     "engagement_rate": meta_b.get("engagement_rate"),
                     "views": meta_b.get("views"),
-                    "likes": meta_b.get("likes")
+                    "likes": meta_b.get("likes"),
+                    "metadata": meta_b
                 }
                 logger.info(f"[RAG] Prepared {len(chunks_b)} chunks for Instagram reel {video_b_id}")
             else:

@@ -140,7 +140,7 @@ export default function VideoCard({ video }: VideoCardProps) {
             ↑ {video.engagement}% engagement
           </span>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {/* <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {video.hashtags.map((h) => (
               <span
                 key={h}
@@ -156,7 +156,7 @@ export default function VideoCard({ video }: VideoCardProps) {
                 {h}
               </span>
             ))}
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

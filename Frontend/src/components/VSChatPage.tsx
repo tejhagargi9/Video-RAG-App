@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from './Sidebar';
 import UserMessage from './Message';
@@ -90,21 +90,29 @@ function getStoredVideoData(): VideoData {
       const data = JSON.parse(stored);
       const updated = { ...DEFAULT_VIDEOS };
       if (data.video_a) {
+        const meta = data.video_a.metadata || {};
         updated.A = {
           ...updated.A,
+          ...meta,
           views: data.video_a.views || DEFAULT_VIDEOS.A.views,
           likes: data.video_a.likes || DEFAULT_VIDEOS.A.likes,
           engagement: data.video_a.engagement_rate || DEFAULT_VIDEOS.A.engagement,
           chunks: data.video_a.chunks || DEFAULT_VIDEOS.A.chunks,
+          creator: meta.channel_title || meta.creator || DEFAULT_VIDEOS.A.creator,
+          hashtags: meta.hashtags || DEFAULT_VIDEOS.A.hashtags,
         };
       }
       if (data.video_b) {
+        const meta = data.video_b.metadata || {};
         updated.B = {
           ...updated.B,
+          ...meta,
           views: data.video_b.views || DEFAULT_VIDEOS.B.views,
           likes: data.video_b.likes || DEFAULT_VIDEOS.B.likes,
           engagement: data.video_b.engagement_rate || DEFAULT_VIDEOS.B.engagement,
           chunks: data.video_b.chunks || DEFAULT_VIDEOS.B.chunks,
+          creator: meta.username || meta.creator || DEFAULT_VIDEOS.B.creator,
+          hashtags: meta.hashtags || DEFAULT_VIDEOS.B.hashtags,
         };
       }
       return updated;
@@ -132,7 +140,7 @@ export default function VSChatPage() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [responseIdx, setResponseIdx] = useState(1);
-  const [videoData] = useState<VideoData>(() => getStoredVideoData());
+  const videoData = useMemo(() => getStoredVideoData(), []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
