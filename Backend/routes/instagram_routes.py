@@ -24,11 +24,11 @@ def compute_engagement_rate(
     likes: int | None,
     comments: int | None,
     views: int | None,
-) -> float | None:
+) -> float:
     likes = likes or 0
     comments = comments or 0
     if not views or views == 0:
-        return None
+        views = likes if likes > 0 else 1  # Use likes as proxy, avoid div by zero
     return round(((likes + comments) / views) * 100, 2)
 
 
@@ -93,8 +93,7 @@ async def get_instagram_transcript(video_path: str):
             data.get("viewCount")
             or data.get("playCount")
             or like_count
-            or None
-        )
+        ) or 1  # Ensure view_count is never None/0 for engagement calc
 
         if not data.get("viewCount") and not data.get("playCount"):
             logger.warning(
@@ -110,7 +109,7 @@ async def get_instagram_transcript(video_path: str):
             f"Likes: {like_count} | "
             f"Comments: {comment_count} | "
             f"Views (proxy): {view_count} | "
-            f"Engagement Rate: {f'{engagement_rate}%' if engagement_rate is not None else 'N/A'}"
+            f"Engagement Rate: {engagement_rate}%"
         )
 
         # Transcript

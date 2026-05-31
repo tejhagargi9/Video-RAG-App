@@ -5,38 +5,27 @@ function App() {
     console.log('YouTube URL:', urlA);
     console.log('Instagram URL:', urlB);
 
-    // Call YouTube backend to get transcript
+    // Call the ingest endpoint which handles both videos and RAG indexing
     try {
-      const youtubeResponse = await fetch(`http://127.0.0.1:8000/transcript/${encodeURIComponent(urlA)}`, {
-        method: 'GET',
+      const response = await fetch('http://127.0.0.1:8000/ingest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          youtube_url: urlA,
+          instagram_url: urlB
+        }),
       });
 
-      if (!youtubeResponse.ok) {
-        throw new Error(`HTTP error! status: ${youtubeResponse.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const youtubeTranscriptData = await youtubeResponse.json();
-      console.log('YouTube Transcript:', youtubeTranscriptData);
+      const data = await response.json();
+      console.log('Ingest Result:', data);
     } catch (error) {
-      console.error('Error fetching YouTube transcript:', error);
-    }
-
-    // Call Instagram backend to get transcript (if urlB is provided)
-    if (urlB) {
-      try {
-        const instagramResponse = await fetch(`http://127.0.0.1:8000/instagram-transcript/${encodeURIComponent(urlB)}`, {
-          method: 'GET',
-        });
-
-        if (!instagramResponse.ok) {
-          throw new Error(`HTTP error! status: ${instagramResponse.status}`);
-        }
-
-        const instagramTranscriptData = await instagramResponse.json();
-        console.log('Instagram Transcript:', instagramTranscriptData);
-      } catch (error) {
-        console.error('Error fetching Instagram transcript:', error);
-      }
+      console.error('Error during ingest:', error);
     }
   };
 
