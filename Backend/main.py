@@ -111,20 +111,38 @@ async def ingest_videos(request: IngestRequest):
 
                 engagement_rate = ((like_count + comment_count) / view_count) * 100 if view_count > 0 else 0
 
-                transcript_response_b = {
-                    "video_url": request.instagram_url,
-                    "transcript": [{"start": 0, "end": 5, "text": transcript_data.get("text", "")}],
-                    "metadata": {
-                        "title": transcript_data.get("title"),
-                        "username": transcript_data.get("userName"),
-                        "likeCount": like_count,
-                        "commentCount": comment_count,
-                        "views": view_count,
-                        "engagement_rate": round(engagement_rate, 2),
-                        "duration": transcript_data.get("duration"),
-                        "source": "instagram"
+                # Use actual segments from Apify if available, otherwise fall back to full text
+                segments = transcript_data.get("segments", [])
+                if segments:
+                    transcript_response_b = {
+                        "video_url": request.instagram_url,
+                        "transcript": [{"start": seg.get("start", 0), "end": seg.get("end", 0), "text": seg.get("text", "")} for seg in segments],
+                        "metadata": {
+                            "title": transcript_data.get("title"),
+                            "username": transcript_data.get("userName"),
+                            "likeCount": like_count,
+                            "commentCount": comment_count,
+                            "views": view_count,
+                            "engagement_rate": round(engagement_rate, 2),
+                            "duration": transcript_data.get("duration"),
+                            "source": "instagram"
+                        }
                     }
-                }
+                else:
+                    transcript_response_b = {
+                        "video_url": request.instagram_url,
+                        "transcript": [{"start": 0, "end": 5, "text": transcript_data.get("text", "")}],
+                        "metadata": {
+                            "title": transcript_data.get("title"),
+                            "username": transcript_data.get("userName"),
+                            "likeCount": like_count,
+                            "commentCount": comment_count,
+                            "views": view_count,
+                            "engagement_rate": round(engagement_rate, 2),
+                            "duration": transcript_data.get("duration"),
+                            "source": "instagram"
+                        }
+                    }
 
                 chunks_b, meta_b = prepare_video_for_rag(transcript_response_b, video_b_id, "instagram")
                 results["video_b"] = {
