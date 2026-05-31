@@ -19,7 +19,7 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -172,5 +172,77 @@ async def ingest_videos(request: IngestRequest):
     return {
         "status": "processed",
         "results": results,
+        "namespace": request.namespace
+    }
+
+
+class ChatRequest(BaseModel):
+    query: str
+    namespace: Optional[str] = None
+    video_a_id: Optional[str] = None
+    video_b_id: Optional[str] = None
+
+
+@app.post("/chat")
+async def chat_query(request: ChatRequest):
+    """
+    Query the vector store with separate retrievals for YouTube and Instagram.
+    Uses metadata filters to retrieve chunks for each video independently.
+    """
+    if not request.query:
+        raise HTTPException(status_code=400, detail="query is required")
+
+    from rag.vector_store import get_vector_store
+
+    try:
+        vector_store = get_vector_store()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Vector store not configured: {e}")
+
+    video_a_chunks = []
+    video_b_chunks = []
+
+    # Retrieve YouTube video chunks (source="youtube" and video_id match)
+    if request.video_a_id:
+        try:
+            a_docs = vector_store.similarity_search(
+                request.query,
+                k=5,
+                filter={"video_id": request.video_a_id, "source": "youtube"},
+                namespace=request.namespace
+            )
+            for doc in a_docs:
+                video_a_chunks.append({
+                    "content": doc.page_content,
+                    "metadata": doc.metadata
+                })
+                logger.info(f"[RAG] Video A chunk: {doc.metadata.get('video_id', 'unknown')}")
+        except Exception as e:
+            logger.error(f"[RAG] Failed to retrieve Video A chunks: {e}")
+
+    # Retrieve Instagram video chunks (source="instagram" and video_id match)
+    if request.video_b_id:
+        try:
+            b_docs = vector_store.similarity_search(
+                request.query,
+                k=5,
+                filter={"video_id": request.video_b_id, "source": "instagram"},
+                namespace=request.namespace
+            )
+            for doc in b_docs:
+                video_b_chunks.append({
+                    "content": doc.page_content,
+                    "metadata": doc.metadata
+                })
+                logger.info(f"[RAG] Video B chunk: {doc.metadata.get('video_id', 'unknown')}")
+        except Exception as e:
+            logger.error(f"[RAG] Failed to retrieve Video B chunks: {e}")
+
+    logger.info(f"[RAG] Retrieved {len(video_a_chunks)} A chunks, {len(video_b_chunks)} B chunks for query")
+
+    return {
+        "query": request.query,
+        "video_a_chunks": video_a_chunks,
+        "video_b_chunks": video_b_chunks,
         "namespace": request.namespace
     }

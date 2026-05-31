@@ -126,6 +126,7 @@ function getStoredVideoData(): VideoData {
 export default function VSChatPage() {
   const navigate = useNavigate();
   type Message = { id: number; role: string; text?: string; route?: string; citations?: Array<{ video: string; label: string; type: string }>; streaming: boolean };
+  const msgIdRef = useRef(0);
   const [messages, setMessages] = useState<Array<Message>>([
     { id: 1, role: "user", text: "Why did Video A get more engagement than Video B?", streaming: false },
     {
@@ -148,18 +149,52 @@ export default function VSChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const sendMessage = (text: string) => {
+  const sendMessage = async (text: string) => {
     if (!text.trim() || isTyping) return;
-    setMessages((prev) => [...prev, { id: Date.now(), role: "user", text: text.trim()!, streaming: false }]);
+    msgIdRef.current += 1;
+    const userMsg = { id: msgIdRef.current, role: "user", text: text.trim()!, streaming: false };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsTyping(true);
 
     const response = SAMPLE_RESPONSES[responseIdx % SAMPLE_RESPONSES.length];
     setResponseIdx((i) => i + 1);
 
+    const namespace = localStorage.getItem('videoragnamespace') || '';
+    const stored = localStorage.getItem('videorag_ingest_data');
+    let video_a_id = '';
+    let video_b_id = '';
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        video_a_id = data.video_a?.video_id || '';
+        video_b_id = data.video_b?.video_id || '';
+      } catch (e) {
+        console.error('Failed to parse ingest data', e);
+      }
+    }
+
+    try {
+      const chatResp = await fetch('http://127.0.0.1:8000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: text, namespace, video_a_id, video_b_id }),
+      });
+      if (!chatResp.ok) {
+        console.error('Chat request failed:', chatResp.status);
+      } else {
+        const chatData = await chatResp.json();
+        console.log('Video A chunks:', chatData.video_a_chunks?.length || 0);
+        console.log('Video B chunks:', chatData.video_b_chunks?.length || 0);
+      }
+    } catch (e) {
+      console.error('Chat error:', e);
+    }
+
     setTimeout(() => {
       setIsTyping(false);
-      const aiId = Date.now() + 1;
+      msgIdRef.current += 1;
+      const aiId = msgIdRef.current;
       const words = response.text.split(" ");
       let current = "";
 
