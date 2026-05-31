@@ -1,29 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import VideoURLInput from './components/VideoURLInput';
 
+function generateNamespace(): string {
+  const now = new Date();
+  return `videorag_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+}
+
 function App() {
-  const [namespace, setNamespace] = useState<string>("");
+  const [namespace] = useState(() => {
+    const id = generateNamespace();
+    localStorage.setItem('videoragnamespace', id);
+    return id;
+  });
   const [loadingStatus, setLoadingStatus] = useState<string>("");
   const [isReady, setIsReady] = useState(false);
-
-  // Generate unique namespace on component mount
-  useEffect(() => {
-    generateNewNamespace();
-  }, []);
-
-  const generateNewNamespace = () => {
-    const now = new Date();
-    const uniqueId = `videorag_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-    localStorage.setItem('videoragnamespace', uniqueId);
-    setNamespace(uniqueId);
-    return uniqueId;
-  };
+  const navigate = useNavigate();
 
   const handleSubmit = async (urlA: string, urlB: string | null) => {
     setLoadingStatus("Ingesting...");
     setIsReady(false);
 
-    const currentNamespace = namespace || generateNewNamespace();
+    const currentNamespace = namespace;
 
     console.log('YouTube URL:', urlA);
     console.log('Instagram URL:', urlB);
@@ -48,6 +46,7 @@ function App() {
 
       const data = await response.json();
       console.log('Ingest Result:', data);
+      localStorage.setItem('videorag_ingest_data', JSON.stringify(data.results));
       setLoadingStatus("Ready!");
       setIsReady(true);
     } catch (error) {
@@ -68,6 +67,16 @@ function App() {
         )}
       </div>
       <VideoURLInput onSubmit={handleSubmit} showSecondInput={true} />
+      {isReady && (
+        <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000 }}>
+          <button
+            onClick={() => navigate('/chat')}
+            style={{ fontSize: 14, color: '#fff', padding: '10px 20px', borderRadius: 8, background: '#4f46e5', border: 'none', cursor: 'pointer' }}
+          >
+            Open Chat
+          </button>
+        </div>
+      )}
     </div>
   );
 }

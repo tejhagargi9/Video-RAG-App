@@ -3,16 +3,19 @@ import { useState } from "react";
 const YT_PATTERN = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[A-Za-z0-9_-]{11}/;
 const IG_PATTERN = /^(https?:\/\/)?(www\.)?instagram\.com\/(reel|reels|p)\/[A-Za-z0-9_-]+/;
 
-export default function VideoURLInput({ onSubmit, showSecondInput = true }) {
+export default function VideoURLInput({ onSubmit, showSecondInput = true }: { 
+  onSubmit?: (urlA: string, urlB: string | null) => void; 
+  showSecondInput?: boolean;
+}) {
   const [urlA, setUrlA] = useState("");
   const [urlB, setUrlB] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const aValid = YT_PATTERN.test(urlA.trim());
+const aValid = YT_PATTERN.test(urlA.trim());
   const bValid = IG_PATTERN.test(urlB.trim());
   
   const canSubmit = showSecondInput ? (aValid && bValid) : aValid;
-
+  
   const handleClick = async () => {
     if (!canSubmit) return;
     
@@ -22,11 +25,6 @@ export default function VideoURLInput({ onSubmit, showSecondInput = true }) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getLoadingText = () => {
-    if (!isLoading) return null;
-    return "Analyzing...";
   };
 
   return (
