@@ -6,12 +6,28 @@ const IG_PATTERN = /^(https?:\/\/)?(www\.)?instagram\.com\/(reel|reels|p)\/[A-Za
 export default function VideoURLInput({ onSubmit, showSecondInput = true }) {
   const [urlA, setUrlA] = useState("");
   const [urlB, setUrlB] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const aValid = YT_PATTERN.test(urlA.trim());
   const bValid = IG_PATTERN.test(urlB.trim());
   
-  // Determine if we can submit based on mode
   const canSubmit = showSecondInput ? (aValid && bValid) : aValid;
+
+  const handleClick = async () => {
+    if (!canSubmit) return;
+    
+    setIsLoading(true);
+    try {
+      await onSubmit?.(urlA.trim(), showSecondInput ? urlB.trim() : null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getLoadingText = () => {
+    if (!isLoading) return null;
+    return "Analyzing...";
+  };
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
@@ -46,7 +62,8 @@ export default function VideoURLInput({ onSubmit, showSecondInput = true }) {
               value={urlA}
               onChange={e => setUrlA(e.target.value)}
               placeholder="https://youtube.com/watch?v=..."
-              className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none transition-colors font-mono"
+              disabled={isLoading}
+              className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none transition-colors font-mono disabled:opacity-50"
             />
           </div>
         </div>
@@ -72,34 +89,35 @@ export default function VideoURLInput({ onSubmit, showSecondInput = true }) {
                 value={urlB}
                 onChange={e => setUrlB(e.target.value)}
                 placeholder="https://instagram.com/reel/..."
-                className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none transition-colors font-mono"
+                disabled={isLoading}
+                className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg pl-9 pr-4 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 outline-none transition-colors font-mono disabled:opacity-50"
               />
             </div>
           </div>
         )}
 
         <button
-          onClick={() => canSubmit && onSubmit?.(
-            urlA.trim(), 
-            showSecondInput ? urlB.trim() : null
-          )}
-          disabled={!canSubmit}
+          onClick={handleClick}
+          disabled={!canSubmit || isLoading}
           className={`w-full py-3 rounded-xl text-sm font-semibold transition-all mt-2
-            ${canSubmit
+            ${isLoading || canSubmit
               ? "bg-zinc-100 text-zinc-900 hover:bg-white cursor-pointer"
-              : "bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed"}`}
+              : "bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed"}
+            disabled:opacity-70 disabled:cursor-not-allowed`}
         >
-          {canSubmit
-            ? showSecondInput
-              ? "Analyze Both Videos →"
-              : "Get Transcript →"
-            : showSecondInput
-              ? aValid
-                ? "Add Instagram Reel URL"
-                : bValid
-                  ? "Add YouTube URL"
-                  : "Paste both URLs to continue"
-              : "Paste YouTube URL to continue"}
+          {isLoading 
+            ? "Analyzing..." 
+            : canSubmit
+              ? showSecondInput
+                ? "Analyze Both Videos →"
+                : "Get Transcript →"
+              : showSecondInput
+                ? aValid
+                  ? "Add Instagram Reel URL"
+                  : bValid
+                    ? "Add YouTube URL"
+                    : "Paste both URLs to continue"
+                : "Paste YouTube URL to continue"}
         </button>
 
       </div>
