@@ -56,6 +56,12 @@ def get_video_metadata(video_id: str) -> dict:
         
         if response.get("items"):
             item = response["items"][0]
+            view_count = int(item["statistics"].get("viewCount", 0))
+            like_count = int(item["statistics"].get("likeCount", 0))
+            comment_count = int(item["statistics"].get("commentCount", 0))
+            
+            engagement_rate = ((like_count + comment_count) / view_count * 100) if view_count > 0 else 0
+            
             metadata = {
                 "title": item["snippet"]["title"],
                 "description": item["snippet"]["description"],
@@ -63,11 +69,14 @@ def get_video_metadata(video_id: str) -> dict:
                 "published_at": item["snippet"]["publishedAt"],
                 "tags": item["snippet"].get("tags", []),
                 "duration": item["contentDetails"]["duration"],
-                "view_count": int(item["statistics"].get("viewCount", 0)),
-                "like_count": int(item["statistics"].get("likeCount", 0)),
+                "view_count": view_count,
+                "like_count": like_count,
+                "comment_count": comment_count,
+                "engagement_rate": round(engagement_rate, 2)
             }
             logger.info(f"Video metadata - Title: {metadata['title']}, Channel: {metadata['channel_title']}")
             logger.info(f"Published: {metadata['published_at']}, Views: {metadata['view_count']}")
+            logger.info(f"Engagement Rate: {metadata['engagement_rate']}% (Likes: {like_count}, Comments: {comment_count})")
             return metadata
         return None
     except Exception as e:
