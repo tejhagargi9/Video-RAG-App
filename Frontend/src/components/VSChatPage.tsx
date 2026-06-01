@@ -38,43 +38,6 @@ const DEFAULT_VIDEOS = {
 
 type VideoData = typeof DEFAULT_VIDEOS;
 
-const SAMPLE_RESPONSES = [
-  {
-    route: "comparison",
-    text: "Video A outperformed B mainly because of its hook strength — within 3 seconds it uses a direct question that creates immediate curiosity. Video B opens with a static title card which loses ~40% of viewers before the content starts.\n\nOn engagement, A achieves 6.08% vs B's 4.71% — meaningful given A has 4× more followers, suggesting the content resonated far beyond its existing audience.",
-    citations: [
-      { video: "A", label: "A · 0:00–0:05 · chunk 1", type: "quote" },
-      { video: "B", label: "B · 0:00–0:04 · chunk 1", type: "quote" },
-      { video: "A", label: "A stats", type: "chart" },
-      { video: "B", label: "B stats", type: "chart" },
-    ],
-  },
-  {
-    route: "stats",
-    text: "Video A: 6.08% engagement rate (142K likes + 3.8K comments / 2.4M views).\nVideo B: 4.71% engagement rate (41K likes + 920 comments / 890K views).\n\nA leads by ~1.4 percentage points despite having a much larger audience to satisfy.",
-    citations: [
-      { video: "A", label: "A stats", type: "chart" },
-      { video: "B", label: "B stats", type: "chart" },
-    ],
-  },
-  {
-    route: "hook · <5s",
-    text: 'Video A hook: Opens mid-action with a provocative question — "Is this actually better?" — while showing the product in-hand. Immediate pattern interrupt.\n\nVideo B hook: Text overlay on a static background reads the title aloud. Functional but low-energy — no visual movement to retain scroll-stopping attention.',
-    citations: [
-      { video: "A", label: "A · 0:00–0:05", type: "clock" },
-      { video: "B", label: "B · 0:00–0:04", type: "clock" },
-    ],
-  },
-  {
-    route: "comparison",
-    text: "Suggested improvements for B based on A:\n1) Replace the static title hook with a mid-action open.\n2) Add a direct question in the first 3 seconds to trigger curiosity.\n3) Shorten the intro by ~8 seconds — A reaches value faster.\n4) Add a pattern-interrupt visual (zoom or cut) at the 5-second mark.",
-    citations: [
-      { video: "A", label: "A · chunk 1–2", type: "quote" },
-      { video: "B", label: "B · chunk 1", type: "quote" },
-    ],
-  },
-];
-
 const SUGGESTIONS = [
   "Why did A outperform B?",
   "Compare the hooks",
@@ -127,20 +90,9 @@ export default function VSChatPage() {
   const navigate = useNavigate();
   type Message = { id: number; role: string; text?: string; route?: string; citations?: Array<{ video: string; label: string; type: string }>; streaming: boolean };
   const msgIdRef = useRef(0);
-  const [messages, setMessages] = useState<Array<Message>>([
-    { id: 1, role: "user", text: "Why did Video A get more engagement than Video B?", streaming: false },
-    {
-      id: 2,
-      role: "ai",
-      route: SAMPLE_RESPONSES[0].route,
-      text: SAMPLE_RESPONSES[0].text,
-      citations: SAMPLE_RESPONSES[0].citations,
-      streaming: false,
-    },
-  ]);
+  const [messages, setMessages] = useState<Array<Message>>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [responseIdx, setResponseIdx] = useState(1);
   const videoData = useMemo(() => getStoredVideoData(), []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -172,7 +124,6 @@ export default function VSChatPage() {
     }
 
     let llmResponseText = '';
-    let usedChunks = { a: [], b: [] };
     let responseCitations: Array<{ video: string; label: string; type: string }> = [];
 
     try {
@@ -184,7 +135,6 @@ export default function VSChatPage() {
       if (chatResp.ok) {
         const chatData = await chatResp.json();
         llmResponseText = chatData.response || '';
-        usedChunks = { a: chatData.video_a_chunks || [], b: chatData.video_b_chunks || [] };
         responseCitations = chatData.citations || [];
         console.log('Video A chunks:', chatData.video_a_chunks?.length || 0);
         console.log('Video B chunks:', chatData.video_b_chunks?.length || 0);
@@ -197,10 +147,11 @@ export default function VSChatPage() {
       llmResponseText = 'Error: Could not connect to server.';
     }
 
-    const response = llmResponseText 
-      ? { route: "rag-response", text: llmResponseText, citations: responseCitations } 
-      : SAMPLE_RESPONSES[responseIdx % SAMPLE_RESPONSES.length];
-    setResponseIdx((i) => i + 1);
+    const response = {
+      route: "rag-response",
+      text: llmResponseText || 'No response available.',
+      citations: responseCitations
+    };
 
     setTimeout(() => {
       setIsTyping(false);
