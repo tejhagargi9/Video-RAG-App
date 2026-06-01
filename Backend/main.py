@@ -3,16 +3,28 @@ from dotenv import load_dotenv
 # Load environment variables from .env
 load_dotenv()
 
+import logging
+from typing import Any, Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
 from pydantic import BaseModel
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
 from routes.transcript_routes import router as transcript_router
 from routes.instagram_routes import router as instagram_router
 from rag.ingest import prepare_video_for_rag, index_videos
-import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _get_model():
+    return ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0.2,
+        max_tokens=5000,
+    )
+
 
 app = FastAPI()
 
@@ -202,6 +214,8 @@ async def chat_query(request: ChatRequest):
     video_a_chunks = []
     video_b_chunks = []
 
+    logger.info(f"[CHAT] Received request - video_a_id: {request.video_a_id}, video_b_id: {request.video_b_id}, query: {request.query[:50]}...")
+
     # Retrieve YouTube video chunks (source="youtube" and video_id match)
     if request.video_a_id:
         try:
@@ -240,8 +254,43 @@ async def chat_query(request: ChatRequest):
 
     logger.info(f"[RAG] Retrieved {len(video_a_chunks)} A chunks, {len(video_b_chunks)} B chunks for query")
 
+    if video_a_chunks:
+        logger.info(f"[RAG] Video A retrieved chunk IDs: {[doc.get('metadata', {}).get('chunk_id') for doc in video_a_chunks]}")
+    if video_b_chunks:
+        logger.info(f"[RAG] Video B retrieved chunk IDs: {[doc.get('metadata', {}).get('chunk_id') for doc in video_b_chunks]}")
+
+    llm_response = None
+    if video_a_chunks or video_b_chunks:
+        context_parts = []
+        for chunk in video_a_chunks:
+            context_parts.append(f"[YouTube Video {request.video_a_id}]: {chunk.get('content', '')}")
+        for chunk in video_b_chunks:
+            context_parts.append(f"[Instagram Video {request.video_b_id}]: {chunk.get('content', '')}")
+        
+        context = "\n\n".join(context_parts)
+        
+        system_prompt = (
+            "You are a helpful assistant answering user queries based on retrieved video transcript chunks. "
+            "Use the provided context from YouTube and Instagram videos to answer the question. "
+            "Be concise and reference which video the information came from when relevant."
+        )
+        
+        try:
+            llm = _get_model()
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=f"Question: {request.query}\n\nContext:\n{context}")
+            ]
+            response = await llm.ainvoke(messages)
+            llm_response = response.content if isinstance(response.content, str) else str(response.content)
+            logger.info(f"[CHAT] LLM response generated ({len(llm_response)} chars)")
+        except Exception as exc:
+            logger.exception(f"[CHAT] LLM processing failed: {exc}")
+            llm_response = f"Error generating response: {str(exc)}"
+
     return {
         "query": request.query,
+        "response": llm_response,
         "video_a_chunks": video_a_chunks,
         "video_b_chunks": video_b_chunks,
         "namespace": request.namespace

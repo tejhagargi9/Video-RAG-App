@@ -157,9 +157,6 @@ export default function VSChatPage() {
     setInput("");
     setIsTyping(true);
 
-    const response = SAMPLE_RESPONSES[responseIdx % SAMPLE_RESPONSES.length];
-    setResponseIdx((i) => i + 1);
-
     const namespace = localStorage.getItem('videoragnamespace') || '';
     const stored = localStorage.getItem('videorag_ingest_data');
     let video_a_id = '';
@@ -174,22 +171,32 @@ export default function VSChatPage() {
       }
     }
 
+    let llmResponseText = '';
+    let usedChunks = { a: [], b: [] };
+
     try {
       const chatResp = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: text, namespace, video_a_id, video_b_id }),
       });
-      if (!chatResp.ok) {
-        console.error('Chat request failed:', chatResp.status);
-      } else {
+      if (chatResp.ok) {
         const chatData = await chatResp.json();
+        llmResponseText = chatData.response || '';
+        usedChunks = { a: chatData.video_a_chunks || [], b: chatData.video_b_chunks || [] };
         console.log('Video A chunks:', chatData.video_a_chunks?.length || 0);
         console.log('Video B chunks:', chatData.video_b_chunks?.length || 0);
+      } else {
+        console.error('Chat request failed:', chatResp.status);
+        llmResponseText = 'Error: Failed to get response from server.';
       }
     } catch (e) {
       console.error('Chat error:', e);
+      llmResponseText = 'Error: Could not connect to server.';
     }
+
+    const response = llmResponseText ? { route: "rag-response", text: llmResponseText, citations: [] } : SAMPLE_RESPONSES[responseIdx % SAMPLE_RESPONSES.length];
+    setResponseIdx((i) => i + 1);
 
     setTimeout(() => {
       setIsTyping(false);
