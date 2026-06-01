@@ -260,12 +260,34 @@ async def chat_query(request: ChatRequest):
         logger.info(f"[RAG] Video B retrieved chunk IDs: {[doc.get('metadata', {}).get('chunk_id') for doc in video_b_chunks]}")
 
     llm_response = None
+    citations = []
+    
     if video_a_chunks or video_b_chunks:
         context_parts = []
-        for chunk in video_a_chunks:
-            context_parts.append(f"[YouTube Video {request.video_a_id}]: {chunk.get('content', '')}")
-        for chunk in video_b_chunks:
-            context_parts.append(f"[Instagram Video {request.video_b_id}]: {chunk.get('content', '')}")
+        
+        for idx, chunk in enumerate(video_a_chunks):
+            content = chunk.get('content', '')
+            metadata = chunk.get('metadata', {})
+            start_time = metadata.get('start_time', 0)
+            end_time = metadata.get('end_time', 0)
+            context_parts.append(f"[YouTube Video {request.video_a_id}]: {content}")
+            citations.append({
+                "video": "A",
+                "label": f"A · {start_time:.0f}s-{end_time:.0f}s · chunk {idx + 1}",
+                "type": "quote"
+            })
+        
+        for idx, chunk in enumerate(video_b_chunks):
+            content = chunk.get('content', '')
+            metadata = chunk.get('metadata', {})
+            start_time = metadata.get('start_time', 0)
+            end_time = metadata.get('end_time', 0)
+            context_parts.append(f"[Instagram Video {request.video_b_id}]: {content}")
+            citations.append({
+                "video": "B",
+                "label": f"B · {start_time:.0f}s-{end_time:.0f}s · chunk {idx + 1}",
+                "type": "quote"
+            })
         
         context = "\n\n".join(context_parts)
         
@@ -291,6 +313,7 @@ async def chat_query(request: ChatRequest):
     return {
         "query": request.query,
         "response": llm_response,
+        "citations": citations,
         "video_a_chunks": video_a_chunks,
         "video_b_chunks": video_b_chunks,
         "namespace": request.namespace

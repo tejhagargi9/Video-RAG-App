@@ -173,6 +173,7 @@ export default function VSChatPage() {
 
     let llmResponseText = '';
     let usedChunks = { a: [], b: [] };
+    let responseCitations: Array<{ video: string; label: string; type: string }> = [];
 
     try {
       const chatResp = await fetch('http://127.0.0.1:8000/chat', {
@@ -184,6 +185,7 @@ export default function VSChatPage() {
         const chatData = await chatResp.json();
         llmResponseText = chatData.response || '';
         usedChunks = { a: chatData.video_a_chunks || [], b: chatData.video_b_chunks || [] };
+        responseCitations = chatData.citations || [];
         console.log('Video A chunks:', chatData.video_a_chunks?.length || 0);
         console.log('Video B chunks:', chatData.video_b_chunks?.length || 0);
       } else {
@@ -195,7 +197,9 @@ export default function VSChatPage() {
       llmResponseText = 'Error: Could not connect to server.';
     }
 
-    const response = llmResponseText ? { route: "rag-response", text: llmResponseText, citations: [] } : SAMPLE_RESPONSES[responseIdx % SAMPLE_RESPONSES.length];
+    const response = llmResponseText 
+      ? { route: "rag-response", text: llmResponseText, citations: responseCitations } 
+      : SAMPLE_RESPONSES[responseIdx % SAMPLE_RESPONSES.length];
     setResponseIdx((i) => i + 1);
 
     setTimeout(() => {
@@ -207,7 +211,7 @@ export default function VSChatPage() {
 
       setMessages((prev) => [
         ...prev,
-        { id: aiId, role: "ai", route: response.route, text: "", citations: [], streaming: true },
+        { id: aiId, role: "ai", route: response.route, text: "", citations: response.citations, streaming: true },
       ]);
 
       let i = 0;

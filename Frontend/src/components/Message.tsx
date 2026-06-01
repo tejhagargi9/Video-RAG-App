@@ -162,5 +162,6 @@ export function TypingIndicator() {
 function routeBadgeStyle(route: string) {
   if (route.startsWith("stats")) return { bg: "#1e1f3a", color: "#818cf8", border: "#312e81" };
   if (route.startsWith("hook")) return { bg: "#2a1f0e", color: "#fbbf24", border: "#78350f" };
+  if (route === "rag-response") return { bg: "#1e1f3a", color: "#818cf8", border: "#312e81" };
   return { bg: "#0f2a1e", color: "#34d399", border: "#065f46" };
 }
