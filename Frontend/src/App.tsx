@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import VideoURLInput from './components/VideoURLInput';
 
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
 function generateNamespace(): string {
   const now = new Date();
   return `videorag_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
@@ -28,7 +30,7 @@ function App() {
     console.log('Namespace:', currentNamespace);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/ingest', {
+      const response = await fetch(`${API_URL}/ingest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

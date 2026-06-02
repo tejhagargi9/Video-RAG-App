@@ -5,6 +5,8 @@ import UserMessage from './Message';
 import { AIMessage, TypingIndicator } from './Message';
 import Icon from './Icon';
 
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
 const DEFAULT_VIDEOS = {
   A: {
     id: "A",
@@ -127,7 +129,7 @@ export default function VSChatPage() {
     let responseCitations: Array<{ video: string; label: string; type: string }> = [];
 
     try {
-      const chatResp = await fetch('http://127.0.0.1:8000/chat', {
+      const chatResp = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: text, namespace, video_a_id, video_b_id }),
