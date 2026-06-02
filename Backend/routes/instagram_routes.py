@@ -29,7 +29,10 @@ def compute_engagement_rate(
     comments = comments or 0
     if not views or views == 0:
         views = likes if likes > 0 else 1  # Use likes as proxy, avoid div by zero
-    return round(((likes + comments) / views) * 100, 2)
+    ratio = (likes + comments) / views
+    # Map ratio to 1-5: 1 + min(4, ratio * 4)
+    engagement_rate = 1 + min(4, ratio * 4)
+    return round(engagement_rate, 2)
 
 
 @router.get("/instagram-transcript/{video_path:path}")
@@ -109,7 +112,7 @@ async def get_instagram_transcript(video_path: str):
             f"Likes: {like_count} | "
             f"Comments: {comment_count} | "
             f"Views (proxy): {view_count} | "
-            f"Engagement Rate: {engagement_rate}%"
+            f"Engagement Rate: {engagement_rate}"
         )
 
         # Transcript
